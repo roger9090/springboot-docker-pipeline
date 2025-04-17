@@ -2,10 +2,10 @@ pipeline {
     agent any
 
    environment {
-        DOCKER_IMAGE = 'yourdockerhubusername/springboot-app'
-        REMOTE_HOST = "ubuntu@<DOCKER_EC2_PUBLIC_IP>"
-        SSH_KEY_ID = "docker-ec2-ssh"
-        CONTAINER_NAME = "springboot-app-container"
+        DOCKER_IMAGE = 'roger44/springboot-app'
+        REMOTE_HOST = "ubuntu@54.241.221.109"
+        SSH_KEY_ID = "ec2-ssh-key"
+        CONTAINER_NAME = "springboot-app"
     }
     
     stages {
@@ -32,10 +32,10 @@ pipeline {
                  script {
             withDockerRegistry(credentialsId: 'dockerhub-credentials') {
                 sh '''
-                    cd /var/lib/jenkins/workspace/jenkins-project
-                    docker build -t jenkins-project:latest -f Dockerfile .
+                    cd /home/ubuntu/springboot-docker-pipeline
+                    docker build -t springboot-app:latest -f Dockerfile .
                    '''
-                sh "docker tag jenkins-project:latest roger44/jenkins-project:latest"
+                sh "docker tag springboot-app:latest roger44/springboot-app:latest"
              }
             }
           }
@@ -44,7 +44,7 @@ pipeline {
             steps {
                script{
                    withDockerRegistry(credentialsId: 'dockerhub-credentials') {
-                    sh "docker push  roger44/jenkins-project:latest "
+                    sh "docker push  roger44/springboot-app:latest "
                  }
                }
             }
@@ -53,7 +53,7 @@ pipeline {
             steps {
                 script {
                     withDockerRegistry(credentialsId: 'dockerhub-credentials') {
-                        sh "docker run -d --name jenkins-project -p 8081:8080 roger44/jenkins-project"
+                        sh "docker run -d --name springboot-app -p 8081:8080 roger44/springboot-app"
                     }
                 }
             }
