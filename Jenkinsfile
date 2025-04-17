@@ -1,14 +1,17 @@
 pipeline {
     agent any
 
-    environment {
+   environment {
         DOCKER_IMAGE = 'yourdockerhubusername/springboot-app'
+        REMOTE_HOST = "ubuntu@<DOCKER_EC2_PUBLIC_IP>"
+        SSH_KEY_ID = "docker-ec2-ssh"
+        CONTAINER_NAME = "springboot-app-container"
     }
-
+    
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://your-git-repo-url'
+                git branch: 'main', url: 'https://github.com/roger9090/springboot-docker-pipeline.git'
             }
         }
 
@@ -23,36 +26,36 @@ pipeline {
                 sh './mvnw test'
             }
         }
-
-        stage('SonarQube Analysis') {
-            environment {
-                SONARQUBE = credentials('sonarqube-token')
-            }
+      
+        stage('Docker Build') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh './mvnw sonar:sonar'
+                 script {
+            withDockerRegistry(credentialsId: 'dockerhub-credentials') {
+                sh '''
+                    cd /var/lib/jenkins/workspace/jenkins-project
+                    docker build -t jenkins-project:latest -f Dockerfile .
+                   '''
+                sh "docker tag jenkins-project:latest roger44/jenkins-project:latest"
+             }
+            }
+          }
+        }
+          stage('Docker Push') {
+            steps {
+               script{
+                   withDockerRegistry(credentialsId: 'dockerhub-credentials') {
+                    sh "docker push  roger44/jenkins-project:latest "
+                 }
+               }
+            }
+        }
+        stage ('Deploying Docker Container') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'dockerhub-credentials') {
+                        sh "docker run -d --name jenkins-project -p 8081:8080 roger44/jenkins-project"
+                    }
                 }
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                sh 'docker build -t $DOCKER_IMAGE .'
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-hub', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                    sh 'echo $PASSWORD | docker login -u $USERNAME --password-stdin'
-                    sh 'docker push $DOCKER_IMAGE'
-                }
-            }
-        }
-
-        stage('Run Container') {
-            steps {
-                sh 'docker run -d -p 8080:8080 $DOCKER_IMAGE'
             }
         }
     }
